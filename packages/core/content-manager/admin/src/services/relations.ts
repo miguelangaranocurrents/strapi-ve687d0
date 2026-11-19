@@ -125,7 +125,13 @@ const relationsApi = contentManagerApi.injectEndpoints({
         return {
           endpointName,
           model: queryArgs.model,
+          // The source document/component id scopes the results (e.g. the relations
+          // a specific dynamic-zone component can still pick). Without it, sibling
+          // components of the same type would share one cached dropdown.
+          id: queryArgs.params?.id,
           targetField: queryArgs.targetField,
+          locale: queryArgs.params?.locale,
+          status: queryArgs.params?.status,
           _q: queryArgs.params?._q,
           idsToOmit: queryArgs.params?.idsToOmit,
           idsToInclude: queryArgs.params?.idsToInclude,

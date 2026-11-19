@@ -179,7 +179,18 @@ const PopoverImpl = ({ zIndex }: { zIndex?: number }) => {
   const setEditingFilter = useFilters('Popover', ({ setEditingFilter }) => setEditingFilter);
 
   const initialValues = React.useMemo(() => {
-    return editingFilter ?? { name: options[0]?.name, filter: BASE_FILTERS[0].value };
+    if (!editingFilter) {
+      return { name: options[0]?.name, filter: BASE_FILTERS[0].value };
+    }
+
+    // Boolean filters are stored in the URL as the strings 'true' / 'false'. Hand the
+    // toggle a real boolean, otherwise 'false' would read as truthy and show as True.
+    const editingOption = options.find((option) => option.name === editingFilter.name);
+    if (editingOption?.type === 'boolean' && editingFilter.value !== undefined) {
+      return { ...editingFilter, value: String(editingFilter.value) === 'true' };
+    }
+
+    return editingFilter;
   }, [editingFilter, options]);
 
   if (options.length === 0) {
@@ -187,7 +198,25 @@ const PopoverImpl = ({ zIndex }: { zIndex?: number }) => {
   }
 
   const handleSubmit = (data: FilterFormData) => {
-    const value = FILTERS_WITH_NO_VALUE.includes(data.filter) ? 'true' : (data.value ?? '');
+    /**
+     * There will ALWAYS be an option because we use the options to create the form data.
+     */
+    const fieldOptions = options.find((filter) => filter.name === data.name)!;
+
+    /**
+     * A boolean toggle that was never touched is `undefined` but is shown as "False",
+     * so it must be submitted as `false`. Checking `!value` below would otherwise drop
+     * the filter for both `undefined` and a real `false`.
+     */
+    let value: string;
+    if (FILTERS_WITH_NO_VALUE.includes(data.filter)) {
+      value = 'true';
+    } else if (fieldOptions.type === 'boolean') {
+      // The toggle may hold a boolean at runtime even though it's typed as a string.
+      value = String(data.value) === 'true' ? 'true' : 'false';
+    } else {
+      value = data.value ?? '';
+    }
 
     if (!value) {
       return;
@@ -196,11 +225,6 @@ const PopoverImpl = ({ zIndex }: { zIndex?: number }) => {
     if (onChange) {
       onChange(data);
     }
-
-    /**
-     * There will ALWAYS be an option because we use the options to create the form data.
-     */
-    const fieldOptions = options.find((filter) => filter.name === data.name)!;
 
     /**
      * If the filter is a relation, we need to nest the filter object,
